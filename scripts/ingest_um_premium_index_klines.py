@@ -7,6 +7,13 @@ from pathlib import Path  # no installation needed
 
 import yaml  # already in env — no new install
 
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]  # no installation needed
+SRC = ROOT / "src"  # no installation needed
+sys.path.insert(0, str(SRC))  # no installation needed
+
+
 from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
 from sydata.providers.um_premium_index_klines import UmPremiumIndexKlinesArchive  # project-local
 
