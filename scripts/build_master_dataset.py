@@ -127,8 +127,13 @@ def _candidate_roots(data_root: Path, dataset: str, venue: str, symbol: str, int
     """
     if dataset == "spot_klines_ohlcv":
         return [
-            data_root / "norm" / "ohlcv" / f"venue={venue}" / f"symbol={symbol}" / f"interval={interval}",
-            data_root / "norm" / "ohlcv" / f"symbol={symbol}" / f"interval={interval}",
+        # ---- preferred normalized layout (if you have it)
+        data_root / "norm" / "ohlcv" / f"venue={venue}" / f"symbol={symbol}" / f"interval={interval}",
+        data_root / "norm" / "ohlcv" / f"symbol={symbol}" / f"interval={interval}",
+
+        # ---- raw fallback (what you clearly have today)
+        data_root / "raw" / "binance" / "klines" / f"symbol={symbol}" / f"interval={interval}",
+        data_root / "raw" / "binance" / "klines" / f"venue={venue}" / f"symbol={symbol}" / f"interval={interval}",
         ]
     if dataset == "bvol_resampled":
         return [
@@ -379,7 +384,7 @@ def main() -> int:
     exact_join_map: Dict[str, Dict[str, str]] = {
         "um_mark_price_klines": {"close": "mark_close"},
         "um_index_price_klines": {"close": "index_close"},
-        "bvol_resampled": {"index_value": "bvol"},
+        "bvol_resampled": {"bvol": "bvol"},
     }
 
     # asof datasets (sparse relative to 1h spine)
@@ -398,6 +403,9 @@ def main() -> int:
             metas.append(meta)
             if df.empty:
                 continue
+
+            if ds == "bvol_resampled" and ("bvol" not in df.columns) and ("index_value" in df.columns):
+                df = df.rename(columns={"index_value": "bvol"})
 
             # normalize to ts,symbol + needed cols
             base_cols = ["ts", "symbol"] + list(cols_map.keys())
