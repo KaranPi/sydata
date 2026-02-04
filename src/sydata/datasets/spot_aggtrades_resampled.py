@@ -29,6 +29,51 @@ import numpy as np
 
 from sydata.io.symbols import load_basket, load_manifest  
 
+# --- resampled schema (always stable, even for empty months) ---
+RESAMPLED_COLS = [
+    "ts",
+    "sum_qty",
+    "trades",
+    "taker_buy_qty",
+    "taker_sell_qty",
+    "taker_buy_trades",
+    "taker_sell_trades",
+    "buy_notional",
+    "sell_notional",
+    "first_trade_id",
+    "first_price",
+    "last_trade_id",
+    "last_price",
+    "cvd_qty",
+    "vwap",
+    "buy_vwap",
+    "sell_vwap",
+    "symbol",
+]
+
+def _empty_resampled_df() -> pd.DataFrame:
+    # NOTE: explicit dtypes prevents parquet schema drift across months.
+    return pd.DataFrame({
+        "ts": pd.Series(dtype="datetime64[ns, UTC]"),
+        "sum_qty": pd.Series(dtype="float64"),
+        "trades": pd.Series(dtype="int64"),
+        "taker_buy_qty": pd.Series(dtype="float64"),
+        "taker_sell_qty": pd.Series(dtype="float64"),
+        "taker_buy_trades": pd.Series(dtype="int64"),
+        "taker_sell_trades": pd.Series(dtype="int64"),
+        "buy_notional": pd.Series(dtype="float64"),
+        "sell_notional": pd.Series(dtype="float64"),
+        "first_trade_id": pd.Series(dtype="int64"),
+        "first_price": pd.Series(dtype="float64"),
+        "last_trade_id": pd.Series(dtype="int64"),
+        "last_price": pd.Series(dtype="float64"),
+        "cvd_qty": pd.Series(dtype="float64"),
+        "vwap": pd.Series(dtype="float64"),
+        "buy_vwap": pd.Series(dtype="float64"),
+        "sell_vwap": pd.Series(dtype="float64"),
+        "symbol": pd.Series(dtype="string"),
+    })[RESAMPLED_COLS]
+
 
 @dataclass(frozen=True)
 class AggResampleCfg:
@@ -120,6 +165,14 @@ def resampled_out_path(
         / f"part-{year}-{month:02d}.parquet"
     )
 
+def resampled_out_path_cfg(cfg: AggResampleCfg, *, symbol: str, year: int, month: int) -> Path:
+    return resampled_out_path(
+        cfg.norm_root,
+        interval=cfg.interval,
+        symbol=symbol,
+        year=year,
+        month=month,
+    )
 
 def load_resampled_month(cfg: "AggResampleCfg", symbol: str, year: int, month: int) -> pd.DataFrame:
     """Convenience loader for notebooks."""
@@ -322,28 +375,7 @@ def resample_month(cfg: AggResampleCfg, symbol: str, year: int, month: int) -> d
 
     if not files:
         outp.parent.mkdir(parents=True, exist_ok=True)
-        empty = pd.DataFrame(
-            columns=[
-                "ts",
-                "sum_qty",
-                "trades",
-                "taker_buy_qty",
-                "taker_sell_qty",
-                "taker_buy_trades",
-                "taker_sell_trades",
-                "buy_notional",
-                "sell_notional",
-                "cvd_qty",
-                "vwap",
-                "buy_vwap",
-                "sell_vwap",
-                "first_trade_id",
-                "first_price",
-                "last_trade_id",
-                "last_price",
-                "symbol",
-            ]
-        )
+        empty = _empty_resampled_df()
         empty.to_parquet(outp, index=False)
         return {"ok": True, "symbol": symbol, "year": year, "month": month, "out": str(outp), "rows": 0, "note": "no raw files"}
 
