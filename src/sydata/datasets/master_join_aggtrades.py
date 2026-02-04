@@ -101,11 +101,25 @@ def resolve_symbols(cfg: MasterAggJoinCfg) -> list[str]:
 # ---------- core join ----------
 
 AGG_RENAME = {
+    # existing bar aggregates
     "sum_qty": "agg_sum_qty",
     "trades": "agg_trades",
     "cvd_qty": "agg_cvd_qty",
     "vwap": "agg_vwap",
     "last_trade_id": "agg_last_trade_id",
+
+    # taker-side microstructure
+    "taker_buy_qty": "agg_taker_buy_qty",
+    "taker_sell_qty": "agg_taker_sell_qty",
+    "taker_buy_trades": "agg_taker_buy_trades",
+    "taker_sell_trades": "agg_taker_sell_trades",
+    "buy_notional": "agg_buy_notional",
+    "sell_notional": "agg_sell_notional",
+    "buy_vwap": "agg_buy_vwap",
+    "sell_vwap": "agg_sell_vwap",
+    "first_price": "agg_first_price",
+    "last_price": "agg_last_price",
+    "first_trade_id": "agg_first_trade_id",
 }
 
 

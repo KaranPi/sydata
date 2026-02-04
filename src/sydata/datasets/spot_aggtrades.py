@@ -1,13 +1,13 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-from dataclasses import dataclass  # no installation needed
-from datetime import date  # no installation needed
-from pathlib import Path  # no installation needed
-from typing import Iterable, Optional  # no installation needed
-import io  # no installation needed
-import zipfile  # no installation needed
+from dataclasses import dataclass  
+from datetime import date  
+from pathlib import Path  
+from typing import Iterable, Optional  
+import io  
+import zipfile  
 
-import pandas as pd  # already in env — no new install
+import pandas as pd  
 
 from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
 
@@ -47,7 +47,7 @@ def normalize_aggtrades_df(raw: pd.DataFrame, symbol_canon: str) -> pd.DataFrame
       B) headerless / generic columns (positional)
     Expected columns per Binance public-data doc:
       [aggTradeId, price, qty, firstTradeId, lastTradeId, timestamp, isBuyerMaker, isBestMatch]
-    """  # no installation needed
+    """  
 
     df = raw.copy()
 

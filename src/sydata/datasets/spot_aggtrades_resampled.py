@@ -18,15 +18,16 @@ Resampled columns (per symbol, per bar)
 - last_trade_id: max agg_trade_id observed in bar
 """
 
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-from dataclasses import dataclass  # no installation needed
-from pathlib import Path  # no installation needed
-from typing import Iterable  # no installation needed
+from dataclasses import dataclass  
+from pathlib import Path  
+from typing import Iterable  
 
-import pandas as pd  # already in env — no new install
+import pandas as pd  
+import numpy as np  
 
-from sydata.io.symbols import load_basket, load_manifest  # no installation needed
+from sydata.io.symbols import load_basket, load_manifest  
 
 
 @dataclass(frozen=True)
@@ -126,86 +127,179 @@ def load_resampled_month(cfg: "AggResampleCfg", symbol: str, year: int, month: i
     return pd.read_parquet(outp)
 
 
+def _agg_one_file(df: pd.DataFrame, floor_str: str) -> pd.DataFrame:
+    """Aggregate raw aggTrades rows into bar-level microstructure features."""
+    df = df.copy()
+
+    # Ensure expected dtypes
+    df["ts"] = pd.to_datetime(df["ts"], utc=True)
+    df["agg_trade_id"] = pd.to_numeric(df["agg_trade_id"], errors="coerce").astype("int64")
+    df["price"] = pd.to_numeric(df["price"], errors="coerce").astype("float64")
+    df["qty"] = pd.to_numeric(df["qty"], errors="coerce").astype("float64")
+    df["is_buyer_maker"] = df["is_buyer_maker"].astype(bool)
+
+    # Bucket
+    df["bar_ts"] = df["ts"].dt.floor(floor_str)
+
+    # Binance semantics:
+    # isBuyerMaker == False => taker buy
+    # isBuyerMaker == True  => taker sell
+    is_sell = df["is_buyer_maker"].to_numpy()
+    is_buy = ~is_sell
+    qty = df["qty"].to_numpy(dtype="float64", copy=False)
+    price = df["price"].to_numpy(dtype="float64", copy=False)
+
+    buy_qty = np.where(is_buy, qty, 0.0)
+    sell_qty = np.where(is_sell, qty, 0.0)
+    buy_trades = is_buy.astype("int64")
+    sell_trades = is_sell.astype("int64")
+
+    buy_notional = np.where(is_buy, price * qty, 0.0)
+    sell_notional = np.where(is_sell, price * qty, 0.0)
+
+    df["_buy_qty"] = buy_qty
+    df["_sell_qty"] = sell_qty
+    df["_buy_trades"] = buy_trades
+    df["_sell_trades"] = sell_trades
+    df["_buy_notional"] = buy_notional
+    df["_sell_notional"] = sell_notional
+
+    gb = df.groupby("bar_ts", sort=True)
+
+    agg = gb.agg(
+        sum_qty=("qty", "sum"),
+        trades=("qty", "size"),
+        taker_buy_qty=("_buy_qty", "sum"),
+        taker_sell_qty=("_sell_qty", "sum"),
+        taker_buy_trades=("_buy_trades", "sum"),
+        taker_sell_trades=("_sell_trades", "sum"),
+        buy_notional=("_buy_notional", "sum"),
+        sell_notional=("_sell_notional", "sum"),
+    )
+
+    # First/last by trade id (preferred ordering)
+    idx_first = gb["agg_trade_id"].idxmin()
+    idx_last = gb["agg_trade_id"].idxmax()
+
+    first_rows = (
+        df.loc[idx_first, ["bar_ts", "agg_trade_id", "price"]]
+        .set_index("bar_ts")
+        .rename(columns={"agg_trade_id": "first_trade_id", "price": "first_price"})
+    )
+    last_rows = (
+        df.loc[idx_last, ["bar_ts", "agg_trade_id", "price"]]
+        .set_index("bar_ts")
+        .rename(columns={"agg_trade_id": "last_trade_id", "price": "last_price"})
+    )
+
+    agg = agg.join(first_rows, how="left").join(last_rows, how="left")
+
+    # Derived identities
+    agg["cvd_qty"] = agg["taker_buy_qty"] - agg["taker_sell_qty"]
+
+    tot_notional = agg["buy_notional"] + agg["sell_notional"]
+    agg["vwap"] = tot_notional / agg["sum_qty"]
+    agg["buy_vwap"] = agg["buy_notional"] / agg["taker_buy_qty"]
+    agg["sell_vwap"] = agg["sell_notional"] / agg["taker_sell_qty"]
+
+    # Clean division edge cases
+    for c in ("vwap", "buy_vwap", "sell_vwap"):
+        agg[c] = agg[c].replace([np.inf, -np.inf], np.nan)
+
+    out = agg.reset_index().rename(columns={"bar_ts": "ts"})
+    return out
+
+
 def _resample_files(
-    files: Iterable[Path],
-    *,
-    floor_str: str,
+    files: list[Path],
     start_utc: pd.Timestamp,
     end_excl_utc: pd.Timestamp,
+    floor_str: str,
 ) -> pd.DataFrame:
-    """Incrementally aggregate each parquet part -> bar aggregates, then sum across parts."""
-    agg: pd.DataFrame | None = None
-    usecols = ["ts", "agg_trade_id", "price", "qty", "is_buyer_maker", "symbol"]
+    # Read + aggregate each file, then combine by union(ts) with stable semantics.
+    usecols = ["ts", "agg_trade_id", "price", "qty", "is_buyer_maker"]
+    if not files:
+        return pd.DataFrame()
 
-    for fp in files:
-        df = pd.read_parquet(fp, columns=usecols)
+    agg = None
 
-        # defensive ts typing (some writers store as int ms)
-        if not pd.api.types.is_datetime64_any_dtype(df["ts"]):
-            df["ts"] = pd.to_datetime(df["ts"], utc=True)
-        else:
-            try:
-                df["ts"] = df["ts"].dt.tz_convert("UTC")
-            except Exception:
-                df["ts"] = df["ts"].dt.tz_localize("UTC")
-
+    for p in files:
+        df = pd.read_parquet(p, columns=usecols)
+        df["ts"] = pd.to_datetime(df["ts"], utc=True)
         df = df[(df["ts"] >= start_utc) & (df["ts"] < end_excl_utc)]
         if df.empty:
             continue
 
-        df["bar_ts"] = df["ts"].dt.floor(floor_str)
-
-        # CVD sign convention:
-        # is_buyer_maker=True  -> buyer is maker -> taker sell -> negative
-        # is_buyer_maker=False -> taker buy -> positive
-        df["signed_qty"] = df["qty"].where(~df["is_buyer_maker"], -df["qty"])
-        df["notional"] = df["price"] * df["qty"]
-
-        g = (
-            df.groupby("bar_ts", sort=False)
-            .agg(
-                sum_qty=("qty", "sum"),
-                trades=("agg_trade_id", "size"),
-                cvd_qty=("signed_qty", "sum"),
-                sum_notional=("notional", "sum"),
-                last_trade_id=("agg_trade_id", "max"),
-            )
-            .reset_index()
-            .rename(columns={"bar_ts": "ts"})
-        )
-        g["vwap"] = g["sum_notional"] / g["sum_qty"]
-        g = g.drop(columns=["sum_notional"])
+        g = _agg_one_file(df, floor_str).set_index("ts").sort_index()
 
         if agg is None:
             agg = g
-        else:
-            # align on ts; sum additive columns; max last_trade_id; recompute vwap via qty-weight later
-            agg = agg.set_index("ts")
-            g = g.set_index("ts")
+            continue
 
-            if "sum_qty" not in agg.columns:
-                raise RuntimeError("internal aggregation state corrupted")
+        # Align on union index
+        idx = agg.index.union(g.index)
+        agg = agg.reindex(idx)
+        g = g.reindex(idx)
 
-            # additive columns
-            for c in ["sum_qty", "trades", "cvd_qty"]:
-                agg[c] = agg[c].add(g[c], fill_value=0)
+        # Additive fields (safe with fillna)
+        add_cols = [
+            "sum_qty",
+            "taker_buy_qty",
+            "taker_sell_qty",
+            "taker_buy_trades",
+            "taker_sell_trades",
+            "buy_notional",
+            "sell_notional",
+        ]
+        for c in add_cols:
+            agg[c] = agg[c].fillna(0.0) + g[c].fillna(0.0)
 
-            # vwap: convert both to notional, add, then divide
-            agg_notional = agg["vwap"] * agg["sum_qty"]
-            g_notional = g["vwap"] * g["sum_qty"]
-            notional = agg_notional.add(g_notional, fill_value=0)
-            agg["vwap"] = notional / agg["sum_qty"]
+        # First by min(first_trade_id), carry its price
+        a_first = agg["first_trade_id"]
+        g_first = g["first_trade_id"]
+        pick_first = g_first.notna() & (a_first.isna() | (g_first < a_first))
+        agg.loc[pick_first, "first_trade_id"] = g_first[pick_first]
+        agg.loc[pick_first, "first_price"] = g.loc[pick_first, "first_price"]
 
-            # last_trade_id: max
-            agg["last_trade_id"] = agg["last_trade_id"].combine(g["last_trade_id"], max)
+        # Last by max(last_trade_id), carry its price
+        a_last = agg["last_trade_id"]
+        g_last = g["last_trade_id"]
+        pick_last = g_last.notna() & (a_last.isna() | (g_last > a_last))
+        agg.loc[pick_last, "last_trade_id"] = g_last[pick_last]
+        agg.loc[pick_last, "last_price"] = g.loc[pick_last, "last_price"]
 
-            agg = agg.reset_index()
+    if agg is None or agg.empty:
+        return pd.DataFrame()
 
-    if agg is None:
-        return pd.DataFrame(columns=["ts", "sum_qty", "trades", "cvd_qty", "vwap", "last_trade_id"])
+    # Final derived identities (recompute so they’re internally consistent)
+    agg["trades"] = (agg["taker_buy_trades"].fillna(0.0) + agg["taker_sell_trades"].fillna(0.0)).astype("int64")
+    agg["cvd_qty"] = agg["taker_buy_qty"].fillna(0.0) - agg["taker_sell_qty"].fillna(0.0)
 
-    return agg.sort_values("ts").reset_index(drop=True)
+    tot_notional = agg["buy_notional"].fillna(0.0) + agg["sell_notional"].fillna(0.0)
+    agg["vwap"] = tot_notional / agg["sum_qty"]
+    agg["buy_vwap"] = agg["buy_notional"] / agg["taker_buy_qty"]
+    agg["sell_vwap"] = agg["sell_notional"] / agg["taker_sell_qty"]
+    for c in ("vwap", "buy_vwap", "sell_vwap"):
+        agg[c] = agg[c].replace([np.inf, -np.inf], np.nan)
 
+    # dtypes
+    for c in ("sum_qty", "taker_buy_qty", "taker_sell_qty", "buy_notional", "sell_notional", "cvd_qty", "vwap", "buy_vwap", "sell_vwap", "first_price", "last_price"):
+        if c in agg.columns:
+            agg[c] = agg[c].astype("float64")
+
+    for c in ("taker_buy_trades", "taker_sell_trades"):
+        if c in agg.columns:
+            agg[c] = agg[c].fillna(0.0).astype("int64")
+
+    for c in ("first_trade_id", "last_trade_id"):
+        if c in agg.columns:
+            if agg[c].isna().any():
+                agg[c] = agg[c].astype("Int64")
+            else:
+                agg[c] = agg[c].astype("int64")
+
+    agg = agg.sort_index()
+    return agg.reset_index()
 
 def resample_month(cfg: AggResampleCfg, symbol: str, year: int, month: int) -> dict:
     start_utc = parse_utc(cfg.start)
@@ -228,7 +322,28 @@ def resample_month(cfg: AggResampleCfg, symbol: str, year: int, month: int) -> d
 
     if not files:
         outp.parent.mkdir(parents=True, exist_ok=True)
-        empty = pd.DataFrame(columns=["ts", "sum_qty", "trades", "cvd_qty", "vwap", "last_trade_id", "symbol"])
+        empty = pd.DataFrame(
+            columns=[
+                "ts",
+                "sum_qty",
+                "trades",
+                "taker_buy_qty",
+                "taker_sell_qty",
+                "taker_buy_trades",
+                "taker_sell_trades",
+                "buy_notional",
+                "sell_notional",
+                "cvd_qty",
+                "vwap",
+                "buy_vwap",
+                "sell_vwap",
+                "first_trade_id",
+                "first_price",
+                "last_trade_id",
+                "last_price",
+                "symbol",
+            ]
+        )
         empty.to_parquet(outp, index=False)
         return {"ok": True, "symbol": symbol, "year": year, "month": month, "out": str(outp), "rows": 0, "note": "no raw files"}
 
