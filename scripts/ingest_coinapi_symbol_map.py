@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import sys  # no installation needed
-from pathlib import Path  # no installation needed
+import sys  
+from pathlib import Path  
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC = REPO_ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-import argparse  # no installation needed
-from pathlib import Path  # no installation needed
+import argparse  
+from pathlib import Path  
 
-import yaml  # already in env — no new install
+import yaml  
 
 from sydata.io.symbols import load_manifest, load_basket  # project-local
 from sydata.providers.coinapi_client import CoinAPIClient  # project-local
