@@ -3,13 +3,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
-import json  # no installation needed
+import json  
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]  # no installation needed
-SRC = ROOT / "src"  # no installation needed
-sys.path.insert(0, str(SRC))  # no installation needed
+ROOT = Path(__file__).resolve().parents[1]  
+SRC = ROOT / "src"  
+sys.path.insert(0, str(SRC))  
 
 
 from sydata.providers.binance_spot import BinanceSpotClient

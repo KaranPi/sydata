@@ -1,24 +1,24 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-import argparse  # no installation needed
-import json  # no installation needed
-import sys  # no installation needed
-from dataclasses import dataclass  # no installation needed
-from pathlib import Path  # no installation needed
-from typing import Any, Dict, List, Optional, Tuple  # no installation needed
+import argparse  
+import json  
+import sys  
+from dataclasses import dataclass  
+from pathlib import Path  
+from typing import Any, Dict, List, Optional, Tuple  
 
-import numpy as np  # already in env — no new install
-import pandas as pd  # already in env — no new install
+import numpy as np  
+import pandas as pd  
 
 
 # --- bootstrap imports from src/ so this script runs via subprocess ---
-ROOT = Path(__file__).resolve().parents[1]  # no installation needed
-SRC = ROOT / "src"  # no installation needed
+ROOT = Path(__file__).resolve().parents[1]  
+SRC = ROOT / "src"  
 if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))  # no installation needed
+    sys.path.insert(0, str(SRC))  
 
 # project-local (already in your repo)
-import sydata.io.symbols as sym  # no installation needed (project-local)
+import sydata.io.symbols as sym   (project-local)
 
 
 # ----------------------------
