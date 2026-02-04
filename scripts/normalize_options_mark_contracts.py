@@ -1,14 +1,14 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-import argparse  # no installation needed
-import json  # no installation needed
-import sys  # no installation needed
-from pathlib import Path  # no installation needed
+import argparse  
+import json  
+import sys  
+from pathlib import Path  
 
 # Make src importable without editable installs
-ROOT = Path(__file__).resolve().parents[1]  # no installation needed
-SRC = ROOT / "src"  # no installation needed
-sys.path.insert(0, str(SRC))  # no installation needed
+ROOT = Path(__file__).resolve().parents[1]  
+SRC = ROOT / "src"  
+sys.path.insert(0, str(SRC))  
 
 from sydata.normalize.options_mark_contracts import normalize_range  # project-local
 

@@ -1,18 +1,18 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-import argparse  # no installation needed
-import json  # no installation needed
-import sys  # no installation needed
-from datetime import datetime, timezone  # no installation needed
-from pathlib import Path  # no installation needed
+import argparse  
+import json  
+import sys  
+from datetime import datetime, timezone  
+from pathlib import Path  
 
-import yaml  # already in env — no new install
+import yaml  
 
 # Make script runnable from anywhere (adds <repo>/src)
-PROJECT_ROOT = Path(__file__).resolve().parents[1]  # no installation needed
-SRC = PROJECT_ROOT / "src"  # no installation needed
-if str(SRC) not in sys.path:  # no installation needed
-    sys.path.insert(0, str(SRC))  # no installation needed
+PROJECT_ROOT = Path(__file__).resolve().parents[1]  
+SRC = PROJECT_ROOT / "src"  
+if str(SRC) not in sys.path:  
+    sys.path.insert(0, str(SRC))  
 
 from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
 from sydata.providers.um_index_price_klines import UmIndexPriceKlinesArchive  # project-local
