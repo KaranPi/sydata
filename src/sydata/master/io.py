@@ -1,15 +1,15 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-from dataclasses import dataclass  # no installation needed
-from pathlib import Path  # no installation needed
+from dataclasses import dataclass  
+from pathlib import Path  
 import sys
-from typing import Iterable, Optional  # no installation needed
+from typing import Iterable, Optional  
 
-ROOT = Path(__file__).resolve().parents[1]  # no installation needed
-SRC = ROOT / "src"  # no installation needed
-sys.path.insert(0, str(SRC))  # no installation needed
+ROOT = Path(__file__).resolve().parents[1]  
+SRC = ROOT / "src"  
+sys.path.insert(0, str(SRC))  
 
-import pandas as pd  # already in env — no new install
+import pandas as pd  
 
 
 @dataclass(frozen=True)
