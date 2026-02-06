@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path  # no installation needed
-from typing import Any  # no installation needed
+from pathlib import Path  
+from typing import Any  
 
-import re  # no installation needed
-import yaml  # already in env — no new install
+import re  
+import yaml  
 
 
 _CANON_RE = re.compile(r"^[A-Z0-9]+(?:-[A-Z0-9]+)?$")  # allows BTC-USDT and BTCBVOLUSDT
