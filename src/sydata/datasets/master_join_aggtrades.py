@@ -6,26 +6,76 @@ from typing import Any, Iterable
 
 import pandas as pd  
 
-from sydata.io.symbols import load_basket, load_manifest  # project-local
+from sydata.datasets.microagg_schema import (  
+    AGG_COLS,
+    AGG_RENAME,
+    micro_keep_cols,
+)
+
+from sydata.io.symbols import load_basket, load_manifest  
 
 
 # ---------- config ----------
 
 @dataclass(frozen=True)
 class MasterAggJoinCfg:
+    # root folder (your marketdata root)
     data_root: Path
-    master_root: Path
-    agg_root: Path
-    out_root: Path
 
-    manifest_path: Path
-    basket: str | None
-    interval: str
+    # optional explicit norm root (marketdata/norm)
+    norm_root: Path | None = None
 
-    start: str  # YYYY-MM-DD
-    end_excl: str  # YYYY-MM-DD (exclusive)
+    # if left as defaults, these will be re-anchored in __post_init__
+    master_root: Path = Path("norm/master")
+    agg_root: Path = Path("norm/spot_aggtrades_resampled")
+    out_root: Path = Path("norm/master_plus_microaggtrades")
+    manifest_path: Path = Path("norm/manifest.json")
 
+    # basket can be either:
+    # - str: basket name in manifest
+    # - list[str]: explicit symbol list
+    basket: str | list[str] | None = None
+
+    interval: str = "15m"
+    start: str = "2025-01-01"
+    end_excl: str = "2026-01-01"
+
+    # explicit override always wins
     symbols_override: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        # Determine base norm dir
+        base_norm = self.norm_root if self.norm_root is not None else (self.data_root / "norm")
+    
+        # Manifest auto-discovery:
+        # Many setups store it under {data_root}/meta instead of {data_root}/norm
+        base_meta = self.data_root / "meta"
+
+        # Only auto-resolve if user left the default OR the current path doesn't exist
+        if (self.manifest_path == Path("norm/manifest.json")) or (not Path(self.manifest_path).exists()):
+            candidates = [
+                base_norm / "manifest.json",
+                base_norm / "manifest.yaml",
+                base_norm / "manifest.yml",
+                base_meta / "manifest.json",
+                base_meta / "manifest.yaml",
+                base_meta / "manifest.yml",
+            ]
+            for p in candidates:
+                if p.exists():
+                    object.__setattr__(self, "manifest_path", p)
+                    break
+    
+
+        # Only rewrite if user left defaults (keeps explicit paths untouched)
+        if self.master_root == Path("norm/master"):
+            object.__setattr__(self, "master_root", base_norm / "master")
+        if self.agg_root == Path("norm/spot_aggtrades_resampled"):
+            object.__setattr__(self, "agg_root", base_norm / "spot_aggtrades_resampled")
+        if self.out_root == Path("norm/master_plus_microaggtrades"):
+            object.__setattr__(self, "out_root", base_norm / "master_plus_microaggtrades")
+        if self.manifest_path == Path("norm/manifest.json"):
+            object.__setattr__(self, "manifest_path", base_norm / "manifest.json")
 
 
 # ---------- small utilities ----------
@@ -84,43 +134,54 @@ def assert_unique_key(df: pd.DataFrame, key_cols: list[str], name: str) -> None:
 
 
 def resolve_symbols(cfg: MasterAggJoinCfg) -> list[str]:
+    # 1) explicit override always wins
     if cfg.symbols_override:
-        return list(cfg.symbols_override)
+        return list(dict.fromkeys(cfg.symbols_override))
 
+    # 2) basket can be an explicit list/tuple of symbols -> no manifest needed
+    if cfg.basket is not None:
+        if isinstance(cfg.basket, (list, tuple)):
+            return list(dict.fromkeys([str(x) for x in cfg.basket]))
+
+        # basket name in manifest
+        if isinstance(cfg.basket, str):
+            spec = load_manifest(cfg.manifest_path)
+            return load_basket(spec, cfg.basket)
+
+        raise TypeError(f"cfg.basket must be str | list[str] | None, got {type(cfg.basket)}")
+
+    # 3) fallback: all symbols from manifest
     spec = load_manifest(cfg.manifest_path)
-    if cfg.basket:
-        return load_basket(spec, cfg.basket)
-
-    # fallback: all canonical symbols in manifest
     symbols = spec.get("symbols", {})
-    if not isinstance(symbols, dict):
-        raise ValueError("manifest 'symbols' must be a mapping")
-    return sorted(symbols.keys())
+    if isinstance(symbols, dict):
+        return sorted(symbols.keys())
+
+    raise ValueError("manifest 'symbols' must be a dict")
 
 
 # ---------- core join ----------
 
-AGG_RENAME = {
-    # existing bar aggregates
-    "sum_qty": "agg_sum_qty",
-    "trades": "agg_trades",
-    "cvd_qty": "agg_cvd_qty",
-    "vwap": "agg_vwap",
-    "last_trade_id": "agg_last_trade_id",
+#AGG_RENAME = {
+#    # existing bar aggregates
+#    "sum_qty": "agg_sum_qty",
+#    "trades": "agg_trades",
+#    "cvd_qty": "agg_cvd_qty",
+#    "vwap": "agg_vwap",
+#    "last_trade_id": "agg_last_trade_id",
 
     # taker-side microstructure
-    "taker_buy_qty": "agg_taker_buy_qty",
-    "taker_sell_qty": "agg_taker_sell_qty",
-    "taker_buy_trades": "agg_taker_buy_trades",
-    "taker_sell_trades": "agg_taker_sell_trades",
-    "buy_notional": "agg_buy_notional",
-    "sell_notional": "agg_sell_notional",
-    "buy_vwap": "agg_buy_vwap",
-    "sell_vwap": "agg_sell_vwap",
-    "first_price": "agg_first_price",
-    "last_price": "agg_last_price",
-    "first_trade_id": "agg_first_trade_id",
-}
+#    "taker_buy_qty": "agg_taker_buy_qty",
+#    "taker_sell_qty": "agg_taker_sell_qty",
+#    "taker_buy_trades": "agg_taker_buy_trades",
+#    "taker_sell_trades": "agg_taker_sell_trades",
+#    "buy_notional": "agg_buy_notional",
+#    "sell_notional": "agg_sell_notional",
+#    "buy_vwap": "agg_buy_vwap",
+#    "sell_vwap": "agg_sell_vwap",
+#    "first_price": "agg_first_price",
+#    "last_price": "agg_last_price",
+#    "first_trade_id": "agg_first_trade_id",
+#}
 
 
 def join_master_with_aggtrades(master_df: pd.DataFrame, agg_df: pd.DataFrame) -> pd.DataFrame:
@@ -166,7 +227,8 @@ def join_master_with_aggtrades(master_df: pd.DataFrame, agg_df: pd.DataFrame) ->
     assert_unique_key(a, ["ts", "symbol"], "agg")
 
     # rename agg cols to avoid collision with master volume/trades/etc.
-    keep = ["ts", "symbol"] + [c for c in AGG_RENAME.keys() if c in a.columns]
+    keep = micro_keep_cols(include_symbol=("symbol" in a.columns))
+    a = a.loc[:, [c for c in keep if c in a.columns]]
     a = a[keep].rename(columns={k: v for k, v in AGG_RENAME.items() if k in a.columns})
 
     out = m.merge(a, on=["ts", "symbol"], how="left", validate="one_to_one")
@@ -178,9 +240,8 @@ def qc_joined(df: pd.DataFrame) -> dict[str, Any]:
         "rows": int(len(df)),
         "ts_unique": bool(df[["ts", "symbol"]].duplicated().sum() == 0),
     }
-    for c in ["agg_sum_qty", "agg_trades", "agg_cvd_qty", "agg_vwap", "agg_last_trade_id"]:
-        if c in df.columns:
-            out[f"{c}_na_frac"] = float(df[c].isna().mean())
+    for c in AGG_RENAME.values():
+        out[f"{c}_na_frac"] = float(df[c].isna().mean()) if c in df.columns else 1.0
     return out
 
 
