@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
 
     p.add_argument("--master-root", default=None, help="Default: <data-root>/norm/master")
     p.add_argument("--agg-root", default=None, help="Default: <data-root>/norm/spot_aggtrades_resampled")
-    p.add_argument("--out-root", default=None, help="Default: <data-root>/norm/master_plus_aggtrades")
+    p.add_argument("--out-root", default=None, help="Default: <data-root>/norm/master_plus_microaggtrades")
 
     return p.parse_args()
 
@@ -32,7 +32,7 @@ def main() -> None:
     data_root = Path(args.data_root)
     master_root = Path(args.master_root) if args.master_root else data_root / "norm" / "master"
     agg_root = Path(args.agg_root) if args.agg_root else data_root / "norm" / "spot_aggtrades_resampled"
-    out_root = Path(args.out_root) if args.out_root else data_root / "norm" / "master_plus_aggtrades"
+    out_root = out_root = Path(args.out_root) if args.out_root else data_root / "norm" / "master_plus_microaggtrades"
 
     cfg = MasterAggJoinCfg(
         data_root=data_root,
