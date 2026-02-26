@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]  # repo root (…/sydata)
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from sydata.providers.binance_options import (  # project-local
+from sydata.providers.binance_options import (  
     BinanceOptionsClient,
     mark_to_frame,
 )

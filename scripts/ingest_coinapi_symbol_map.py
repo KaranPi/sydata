@@ -13,9 +13,9 @@ from pathlib import Path
 
 import yaml  
 
-from sydata.io.symbols import load_manifest, load_basket  # project-local
-from sydata.providers.coinapi_client import CoinAPIClient  # project-local
-from sydata.providers.coinapi_metadata import CoinAPIMetadata  # project-local
+from sydata.io.symbols import load_manifest, load_basket  
+from sydata.providers.coinapi_client import CoinAPIClient  
+from sydata.providers.coinapi_metadata import CoinAPIMetadata  
 
 
 def main() -> int:
