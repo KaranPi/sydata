@@ -4,7 +4,7 @@ import argparse
 import json  
 from pathlib import Path  
 
-from sydata.datasets.master_join_aggtrades import (  # project-local
+from sydata.datasets.master_join_aggtrades import (  
     MasterAggJoinCfg,
     run_monthly_join,
 )
