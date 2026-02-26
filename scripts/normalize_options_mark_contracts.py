@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"  
 sys.path.insert(0, str(SRC))  
 
-from sydata.normalize.options_mark_contracts import normalize_range  # project-local
+from sydata.normalize.options_mark_contracts import normalize_range  
 
 
 def main() -> int:

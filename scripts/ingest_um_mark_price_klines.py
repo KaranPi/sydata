@@ -14,8 +14,8 @@ SRC = PROJECT_ROOT / "src"
 if str(SRC) not in sys.path:  
     sys.path.insert(0, str(SRC))  
 
-from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
-from sydata.providers.um_mark_price_klines import UmMarkPriceKlinesArchive  # project-local
+from sydata.providers.binance_data_archive import BinanceDataArchiveClient  
+from sydata.providers.um_mark_price_klines import UmMarkPriceKlinesArchive  
 
 
 def load_basket(manifest_path: Path, basket_name: str) -> list[str]:
