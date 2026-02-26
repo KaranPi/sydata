@@ -21,8 +21,8 @@ SRC = REPO_ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from sydata.providers.coinapi_client import CoinAPIClient  # project-local
-from sydata.providers.coinapi_metrics import CoinAPIMetricsV1  # project-local
+from sydata.providers.coinapi_client import CoinAPIClient  
+from sydata.providers.coinapi_metrics import CoinAPIMetricsV1  
 
 
 def utc_now_tag() -> str:

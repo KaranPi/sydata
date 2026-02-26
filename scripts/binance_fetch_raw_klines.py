@@ -13,7 +13,7 @@ sys.path.insert(0, str(SRC))
 
 
 from sydata.providers.binance_spot import BinanceSpotClient
-from sydata.io.symbols import load_manifest, load_basket  # project-local
+from sydata.io.symbols import load_manifest, load_basket  
 
 
 def parse_utc_ms(ts: str) -> int:

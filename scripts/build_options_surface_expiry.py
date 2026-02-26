@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"  
 sys.path.insert(0, str(SRC))  
 
-from sydata.features.options_surface_expiry import build_surface_expiry_range  # project-local
+from sydata.features.options_surface_expiry import build_surface_expiry_range  
 
 
 def main() -> int:
