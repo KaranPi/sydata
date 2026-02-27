@@ -9,7 +9,7 @@ import zipfile
 
 import pandas as pd  
 
-from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
+from sydata.providers.binance_data_archive import BinanceDataArchiveClient  
 
 
 def canon_to_venue_symbol_spot(canon: str) -> str:
