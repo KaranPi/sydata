@@ -1,11 +1,11 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-from dataclasses import dataclass  # no installation needed
-from pathlib import Path  # no installation needed
-from typing import Optional  # no installation needed
-import shutil  # no installation needed
+from dataclasses import dataclass  
+from pathlib import Path  
+from typing import Optional  
+import shutil  
 
-import requests  # already in env — no new install
+import requests  
 
 
 @dataclass(frozen=True)
@@ -16,7 +16,7 @@ class BinanceDataArchiveClient:
     URL patterns confirmed by directory listings:
       - monthly aggTrades: /data/spot/monthly/aggTrades/<SYM>/<SYM>-aggTrades-YYYY-MM.zip
       - daily   aggTrades: /data/spot/daily/aggTrades/<SYM>/<SYM>-aggTrades-YYYY-MM-DD.zip
-    """  # no installation needed
+    """  
 
     base_url: str = "https://data.binance.vision"
     timeout_s: int = 120
