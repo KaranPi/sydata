@@ -46,7 +46,7 @@ class BinanceSpotClient:
 
     @staticmethod
     def to_api_symbol(canonical_symbol: str) -> str:
-        import re  # no installation needed
+        import re  
         s = canonical_symbol.strip()
         if re.fullmatch(r"[A-Za-z0-9]+-[A-Za-z0-9]+", s):
             return s.replace("-", "").upper()
