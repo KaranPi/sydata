@@ -1,14 +1,14 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-import io  # no installation needed
-import zipfile  # no installation needed
-from dataclasses import dataclass  # no installation needed
-from datetime import date  # no installation needed
-from pathlib import Path  # no installation needed
+import io  
+import zipfile  
+from dataclasses import dataclass  
+from datetime import date  
+from pathlib import Path  
 
-import pandas as pd  # already in env — no new install
+import pandas as pd  
 
-from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
+from sydata.providers.binance_data_archive import BinanceDataArchiveClient  
 
 
 def canon_to_venue_symbol(symbol_canon: str) -> str:

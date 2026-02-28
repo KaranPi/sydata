@@ -1,15 +1,15 @@
-from __future__ import annotations  # no installation needed
+from __future__ import annotations  
 
-from dataclasses import dataclass  # no installation needed
-from datetime import datetime, timezone  # no installation needed
-from pathlib import Path  # no installation needed
-from typing import Dict, Iterable, Iterator, Optional, Tuple  # no installation needed
-import io  # no installation needed
-import zipfile  # no installation needed
+from dataclasses import dataclass  
+from datetime import datetime, timezone  
+from pathlib import Path  
+from typing import Dict, Iterable, Iterator, Optional, Tuple  
+import io  
+import zipfile  
 
-import pandas as pd  # already in env — no new install
+import pandas as pd  
 
-from sydata.providers.binance_data_archive import BinanceDataArchiveClient  # project-local
+from sydata.providers.binance_data_archive import BinanceDataArchiveClient  
 
 
 def canon_to_venue_symbol_um(canon: str) -> str:
