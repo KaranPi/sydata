@@ -1,8 +1,0 @@
-/checkpoint_files
-/tests
-/.env
-/src/sydata/providers/coinapi_client.py
-/src/sydata/providers/coinapi_metadata.py
-/src/sydata/providers/coinapi_metrics.py
-/src/sydata/providers/__pycache__
-/src/sydata/datasets/__pycache__
